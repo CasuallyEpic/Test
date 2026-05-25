@@ -1,6 +1,6 @@
 FROM alpine:3.19
 
-# Install ttyd, native tools, and standard shell utilities
+# Install ttyd, bash, and common networking/dev tools
 RUN apk add --no-cache \
     ttyd \
     bash \
@@ -15,9 +15,9 @@ RUN apk add --no-cache \
 ENV TERM=xterm-256color
 ENV SHELL=/bin/bash
 
-# Render requires traffic on port 10000
+# Render strictly requires traffic on port 10000
 EXPOSE 10000
 
 # Start ttyd on port 10000 running bash natively
-# Protected with Username: admin | Password: mysecurepass
-CMD ["ttyd", "-p", "10000", "-W", "-i", "0.0.0.0", "-c", "admin:mysecurepass", "/bin/bash"]
+# Protected with Username: admin | Password: password123
+CMD ["ttyd", "-p", "10000", "-W", "-i", "0.0.0.0", "-c", "admin:password123", "/bin/bash"]

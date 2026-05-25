@@ -1,40 +1,30 @@
-FROM alpine:3.19
+FROM --platform=linux/amd64 ubuntu:22.04
 
-# Install lightweight Openbox window manager, Xvfb virtual frame screen, x11vnc, noVNC, and utilities
-RUN apk add --no-cache \
-    openbox \
-    xvfb \
-    x11vnc \
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install lightweight XFCE core, TigerVNC, noVNC, and utilities (WITHOUT systemd/snapd)
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    xfce4 \
+    tigervnc-standalone-server \
     novnc \
     websockify \
+    dbus-x11 \
+    x11-xserver-utils \
+    chromium-browser \
     curl \
     git \
     net-tools \
-    iputils \
-    xvfb-run \
-    ttf-dejavu
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Configure noVNC web layout paths to point index directly to vnc.html
+# Point the default noVNC root directly to the login file layout
 RUN ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
-# Expose port 10000 for Render routing
+# Render requires our web server to listen strictly on port 10000
 EXPOSE 10000
 
-# Write a single structural entrypoint script that enforces perfect step-by-step launch timing
-RUN echo -e '#!/bin/sh\n\
-echo "Starting Virtual Framebuffer..."\n\
-Xvfb :1 -screen 0 1280x720x16 &\n\
-sleep 2\n\n\
-echo "Starting Window Manager..."\n\
-DISPLAY=:1 openbox-session &\n\
-sleep 1\n\n\
-echo "Starting X11 VNC Server..."\n\
-x11vnc -display :1 -nopw -forever -shared -localhost -rfbport 5900 &\n\
-sleep 2\n\n\
-echo "Launching noVNC WebSocket Bridge on Render Port 10000..."\n\
-websockify --web /usr/share/novnc 10000 127.0.0.1:5900\n' > /entrypoint.sh && chmod +x /entrypoint.sh
-
-CMD ["/bin/sh", "/entrypoint.sh"]
-EXPOSE 10000
-
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+# Fix the string escaping and route traffic directly through port 10000
+CMD bash -c "\
+    vncserver :1 -localhost no -SecurityTypes None -geometry 1280x720 --I-KNOW-THIS-IS-INSECURE && \
+    openssl req -new -subj '/C=NP' -x509 -days 365 -nodes -out /tmp/self.pem -keyout /tmp/self.pem && \
+    websockify --web=/usr/share/novnc/ --cert=/tmp/self.pem 10000 localhost:5901 \
+"

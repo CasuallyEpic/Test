@@ -13,22 +13,26 @@ RUN apk add --no-cache \
     iputils \
     busybox-extras
 
-# Configure noVNC web layout paths
+# Configure noVNC web layout paths to point index directly to vnc.html
 RUN ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
-# Set up supervisord configuration with the mandatory [supervisord] block
+# Set up supervisord configuration with explicit execution paths and display targets
 RUN echo -e '[supervisord]\n\
 nodaemon=true\n\
 user=root\n\n\
 [program:xvfb]\n\
-command=Xvfb :1 -screen 0 1280x720x16\n\n\
+command=/usr/bin/Xvfb :1 -screen 0 1280x720x16\n\
+priority=1\n\n\
 [program:openbox]\n\
-command=openbox-session\n\
-environment=DISPLAY=:1\n\n\
+command=/usr/bin/openbox-session\n\
+environment=DISPLAY=":1"\n\
+priority=2\n\n\
 [program:x11vnc]\n\
-command=x11vnc -display :1 -nopw -forever -shared\n\n\
+command=/usr/bin/x11vnc -display :1 -nopw -forever -shared -rfbport 5900\n\
+priority=3\n\n\
 [program:novnc]\n\
-command=websockify --web /usr/share/novnc 10000 localhost:5900\n' > /etc/supervisord.conf
+command=/usr/bin/websockify --web /usr/share/novnc 10000 localhost:5900\n\
+priority=4\n' > /etc/supervisord.conf
 
 EXPOSE 10000
 

@@ -1,39 +1,40 @@
 FROM alpine:3.19
 
-# Install lightweight Openbox window manager, noVNC, and network utilities
+# Install lightweight Openbox window manager, Xvfb virtual frame screen, x11vnc, noVNC, and utilities
 RUN apk add --no-cache \
     openbox \
     xvfb \
     x11vnc \
     novnc \
-    supervisor \
+    websockify \
     curl \
     git \
     net-tools \
     iputils \
-    busybox-extras
+    xvfb-run \
+    ttf-dejavu
 
 # Configure noVNC web layout paths to point index directly to vnc.html
 RUN ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
-# Set up supervisord configuration with explicit execution paths and display targets
-RUN echo -e '[supervisord]\n\
-nodaemon=true\n\
-user=root\n\n\
-[program:xvfb]\n\
-command=/usr/bin/Xvfb :1 -screen 0 1280x720x16\n\
-priority=1\n\n\
-[program:openbox]\n\
-command=/usr/bin/openbox-session\n\
-environment=DISPLAY=":1"\n\
-priority=2\n\n\
-[program:x11vnc]\n\
-command=/usr/bin/x11vnc -display :1 -nopw -forever -shared -rfbport 5900\n\
-priority=3\n\n\
-[program:novnc]\n\
-command=/usr/bin/websockify --web /usr/share/novnc 10000 localhost:5900\n\
-priority=4\n' > /etc/supervisord.conf
+# Expose port 10000 for Render routing
+EXPOSE 10000
 
+# Write a single structural entrypoint script that enforces perfect step-by-step launch timing
+RUN echo -e '#!/bin/sh\n\
+echo "Starting Virtual Framebuffer..."\n\
+Xvfb :1 -screen 0 1280x720x16 &\n\
+sleep 2\n\n\
+echo "Starting Window Manager..."\n\
+DISPLAY=:1 openbox-session &\n\
+sleep 1\n\n\
+echo "Starting X11 VNC Server..."\n\
+x11vnc -display :1 -nopw -forever -shared -localhost -rfbport 5900 &\n\
+sleep 2\n\n\
+echo "Launching noVNC WebSocket Bridge on Render Port 10000..."\n\
+websockify --web /usr/share/novnc 10000 127.0.0.1:5900\n' > /entrypoint.sh && chmod +x /entrypoint.sh
+
+CMD ["/bin/sh", "/entrypoint.sh"]
 EXPOSE 10000
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]

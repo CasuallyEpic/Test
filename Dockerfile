@@ -16,13 +16,19 @@ RUN apk add --no-cache \
 # Configure noVNC web layout paths
 RUN ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
-# Set up supervisord configuration to run everything cleanly on port 10000
-# (Render requires your application to listen on a port, and defaults to 10000)
-RUN echo '[supervisord]\nnodaemon=true\n\n\
-[program:xvfb]\ncommand=Xvfb :1 -screen 0 1280x720x16\n\n\
-[program:openbox]\ncommand=openbox-session\nenvironment=DISPLAY=:1\n\n\
-[program:x11vnc]\ncommand=x11vnc -display :1 -nopw -forever -shared\n\n\
-[program:novnc]\ncommand=websockify --web /usr/share/novnc 10000 localhost:5900\n' > /etc/supervisord.conf
+# Set up supervisord configuration with the mandatory [supervisord] block
+RUN echo -e '[supervisord]\n\
+nodaemon=true\n\
+user=root\n\n\
+[program:xvfb]\n\
+command=Xvfb :1 -screen 0 1280x720x16\n\n\
+[program:openbox]\n\
+command=openbox-session\n\
+environment=DISPLAY=:1\n\n\
+[program:x11vnc]\n\
+command=x11vnc -display :1 -nopw -forever -shared\n\n\
+[program:novnc]\n\
+command=websockify --web /usr/share/novnc 10000 localhost:5900\n' > /etc/supervisord.conf
 
 EXPOSE 10000
 

@@ -1,0 +1,16 @@
+{
+    "name": "Cloud VNC Desktop",
+    "dockerFile": "Dockerfile",
+    "forwardPorts": [6080],
+    "portsAttributes": {
+        "6080": {
+            "label": "VNC Desktop Interface",
+            "onAutoForward": "openBrowser"
+        }
+    },
+    "customizations": {
+        "codespaces": {
+            "openOnStart": true
+        }
+    }
+}

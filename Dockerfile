@@ -1,30 +1,23 @@
-FROM --platform=linux/amd64 ubuntu:22.04
+FROM alpine:3.19
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Install lightweight XFCE core, TigerVNC, noVNC, and utilities (WITHOUT systemd/snapd)
-RUN apt-get update && apt-get install --no-install-recommends -y \
-    xfce4 \
-    tigervnc-standalone-server \
-    novnc \
-    websockify \
-    dbus-x11 \
-    x11-xserver-utils \
-    chromium-browser \
+# Install ttyd, native tools, and standard shell utilities
+RUN apk add --no-cache \
+    ttyd \
+    bash \
     curl \
     git \
     net-tools \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    iputils \
+    busybox-extras \
+    vim
 
-# Point the default noVNC root directly to the login file layout
-RUN ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
+# Set up the terminal environment to support colors cleanly
+ENV TERM=xterm-256color
+ENV SHELL=/bin/bash
 
-# Render requires our web server to listen strictly on port 10000
+# Render requires traffic on port 10000
 EXPOSE 10000
 
-# Fix the string escaping and route traffic directly through port 10000
-CMD bash -c "\
-    vncserver :1 -localhost no -SecurityTypes None -geometry 1280x720 --I-KNOW-THIS-IS-INSECURE && \
-    openssl req -new -subj '/C=NP' -x509 -days 365 -nodes -out /tmp/self.pem -keyout /tmp/self.pem && \
-    websockify --web=/usr/share/novnc/ --cert=/tmp/self.pem 10000 localhost:5901 \
-"
+# Start ttyd on port 10000 running bash natively
+# Protected with Username: admin | Password: mysecurepass
+CMD ["ttyd", "-p", "10000", "-W", "-i", "0.0.0.0", "-c", "admin:mysecurepass", "/bin/bash"]
